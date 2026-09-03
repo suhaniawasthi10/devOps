@@ -1,0 +1,10 @@
+  PID TTY           TIME CMD
+15966 ttys001    0:00.15 /bin/zsh -il
+19878 ttys002    0:00.12 /bin/zsh -il
+20499 ttys002    0:00.02 /bin/bash ./system_info.sh
+15968 ttys003    0:00.14 /bin/zsh -il
+15969 ttys004    0:00.14 /bin/zsh -il
+15970 ttys005    0:00.14 /bin/zsh -il
+15972 ttys006    0:00.15 /bin/zsh -il
+15973 ttys007    0:00.15 /bin/zsh -il
+15974 ttys008    0:00.15 /bin/zsh -il
