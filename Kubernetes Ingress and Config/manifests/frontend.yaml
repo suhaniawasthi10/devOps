@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devops-frontend-page
+  namespace: devops-config
+data:
+  index.html: |
+    <!doctype html>
+    <html>
+      <head><title>DevOps Portal</title></head>
+      <body style="font-family: system-ui; margin: 3rem">
+        <h1>DevOps Portal - Frontend</h1>
+        <p>Served by the <code>devops-frontend</code> Deployment through the NGINX Ingress.</p>
+        <p>Try <a href="/api/">/api/</a> for the backend.</p>
+        <p>Suhani Awasthi &middot; 24BCS10260</p>
+      </body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-frontend
+  namespace: devops-config
+  labels:
+    app: devops-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devops-frontend
+  template:
+    metadata:
+      labels:
+        app: devops-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: nginx:1.27-alpine
+        ports:
+        - containerPort: 80
+        envFrom:
+        - configMapRef:
+            name: devops-app-config
+        volumeMounts:
+        - name: page
+          mountPath: /usr/share/nginx/html
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 2
+          periodSeconds: 3
+      volumes:
+      - name: page
+        configMap:
+          name: devops-frontend-page
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-frontend-service
+  namespace: devops-config
+  labels:
+    app: devops-frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: devops-frontend
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP

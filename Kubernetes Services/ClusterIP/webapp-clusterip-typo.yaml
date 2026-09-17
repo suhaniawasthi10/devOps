@@ -1,0 +1,14 @@
+# Deliberate selector typo for the troubleshooting exercise.
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-typo
+  namespace: devops-services
+spec:
+  type: ClusterIP
+  selector:
+    app: webap
+  ports:
+  - name: http
+    port: 9090
+    targetPort: http

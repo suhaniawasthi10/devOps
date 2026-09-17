@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: devops-backend-rs
+  labels:
+    app: devops-backend-rs
+  namespace: devops-workloads
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: devops-backend-rs
+  template:
+    metadata:
+      labels:
+        app: devops-backend-rs
+    spec:
+      containers:
+      - name: backend
+        image: python:3.12-alpine
+        command:
+        - python3
+        - -m
+        - http.server
+        - '5000'
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
