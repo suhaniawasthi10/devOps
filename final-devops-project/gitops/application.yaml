@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: coursework-notes
+  namespace: argocd
+spec:
+  project: coursework
+  source:
+    repoURL: https://github.com/suhaniawasthi10/devOps.git
+    targetRevision: main
+    path: final-devops-project/helm
+    helm:
+      releaseName: notes
+      valueFiles:
+        - ../gitops/values.yaml
+      skipTests: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devops-gitops
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: notes
+      jsonPointers: [/spec/replicas]
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - RespectIgnoreDifferences=true

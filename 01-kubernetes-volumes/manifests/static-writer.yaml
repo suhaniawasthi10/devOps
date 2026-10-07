@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: static-writer
+spec:
+  restartPolicy: Never
+  containers:
+  - name: demo
+    image: busybox:1.37
+    command:
+    - sh
+    - -c
+    - echo "$(date) persistence check" >> /data/proof.txt; cat /data/proof.txt; sleep
+      3600
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: static-data

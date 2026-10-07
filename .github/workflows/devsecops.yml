@@ -1,0 +1,112 @@
+name: Sessions 17 and 21 - DevSecOps
+on:
+  push:
+    branches: [main]
+    paths: ['final-devops-project/**', 'scripts/**', '.github/workflows/devsecops.yml']
+  pull_request:
+    paths: ['final-devops-project/**', 'scripts/**', '.github/workflows/devsecops.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: devsecops-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  security-and-cluster-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build and unit tests
+        run: |
+          pip install -r final-devops-project/application/requirements-dev.txt
+          python -m compileall -q final-devops-project/application
+          python -m pytest -q final-devops-project/application --junitxml=/tmp/tests.xml
+      - name: SAST gate
+        run: bandit -r final-devops-project/application -x final-devops-project/application/test_app.py -c final-devops-project/security/bandit.yaml
+      - name: Dependency vulnerability gate
+        run: pip-audit -r final-devops-project/application/requirements.txt
+      - name: Secret scanning gate
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact --config /repo/final-devops-project/security/gitleaks.toml
+      - name: Docker build
+        run: docker build -f final-devops-project/docker/Dockerfile -t coursework-notes:${{ github.sha }} final-devops-project
+      - name: Container vulnerability gate
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: coursework-notes:${{ github.sha }}
+          trivy-config: final-devops-project/security/trivy.yaml
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.17.4
+      - name: Helm validation
+        run: |
+          helm lint final-devops-project/helm
+          helm template notes final-devops-project/helm -f final-devops-project/helm/values-prod.yaml > /tmp/rendered.yaml
+      - name: Disposable Kubernetes environment
+        uses: helm/kind-action@v1.15.1
+        with:
+          cluster_name: coursework
+      - name: Deploy the tested image
+        run: |
+          kind load docker-image coursework-notes:${{ github.sha }} --name coursework
+          helm upgrade --install notes final-devops-project/helm --namespace coursework --create-namespace --set image.tag=${{ github.sha }} --wait --timeout 180s
+          helm test notes -n coursework --logs
+      - name: API smoke test in Kubernetes
+        run: |
+          kubectl -n coursework port-forward svc/notes 18080:80 >/tmp/port-forward.txt 2>&1 &
+          forward_pid=$!
+          trap 'kill "$forward_pid" || true' EXIT
+          curl --retry 15 --retry-all-errors --retry-connrefused --retry-delay 2 -fsS http://localhost:18080/readyz
+          curl -fsS -H 'X-API-Key: coursework-demo-only' -H 'Content-Type: application/json' -d '{"text":"CI deployment verified"}' http://localhost:18080/api/notes
+          curl -fsS http://localhost:18080/api/notes | python -c 'import json,sys; assert any(n["text"]=="CI deployment verified" for n in json.load(sys.stdin))'
+      - name: Export tested image
+        run: docker save coursework-notes:${{ github.sha }} -o /tmp/notes-image.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tested-notes-image
+          path: /tmp/notes-image.tar
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: /tmp/tests.xml
+      - name: Diagnostics
+        if: failure()
+        run: |
+          kubectl get pods -A || true
+          kubectl -n coursework describe pods || true
+  publish:
+    needs: security-and-cluster-test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: tested-notes-image
+          path: /tmp/image
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish exact tested image
+        env:
+          REPOSITORY: ${{ github.repository }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          image="ghcr.io/${REPOSITORY,,}/notes"
+          docker load -i /tmp/image/notes-image.tar
+          docker tag "coursework-notes:$IMAGE_TAG" "$image:$IMAGE_TAG"
+          docker push "$image:$IMAGE_TAG"
+          echo "Published $image:$IMAGE_TAG" >> "$GITHUB_STEP_SUMMARY"

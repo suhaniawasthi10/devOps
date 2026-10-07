@@ -61,3 +61,7 @@ Stop any `minikube service --url` or `minikube tunnel` process with Ctrl+C first
 ```bash
 kubectl --context minikube delete namespace devops-services
 ```
+
+## Session 11 documentation
+
+See [object comparisons](comparisons/README.md), [FQDN](../fqdn/README.md), and [CoreDNS](../coredns/README.md). Capture the DNS command outputs with the Services practical session.

@@ -1,36 +1,20 @@
-#!/bin/bash
-
-# Store system information in variables
+#!/usr/bin/env bash
+set -euo pipefail
 current_date=$(date)
-hostname=$(hostname)
+machine_name=$(hostname)
 username=$(whoami)
-
-# Take directory name from the user
-read -p "Enter directory name: " directory
-
-# Create the directory
-mkdir -p "$directory"
-
-# Create a file inside the directory
+read -r -p "Enter directory name: " directory
+if [ -z "$directory" ]; then echo 'Directory name must not be empty.' >&2; exit 1; fi
+mkdir -p -- "$directory"
 file="$directory/processes.txt"
-touch "$file"
-
-# Display system information
-echo "===== System Information ====="
+touch -- "$file"
+echo '===== System Information ====='
 echo "Current Date: $current_date"
-echo "Hostname: $hostname"
+echo "Hostname: $machine_name"
 echo "Username: $username"
-
-echo ""
-echo "===== Disk Usage ====="
+echo '===== Disk Usage ====='
 df -h
-
-echo ""
-echo "===== Running Processes ====="
+echo '===== Running Processes ====='
 ps
-
-# Store running processes in the file
 ps > "$file"
-
-echo ""
 echo "Running processes have been saved to $file"

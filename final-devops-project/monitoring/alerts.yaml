@@ -1,0 +1,24 @@
+groups:
+- name: notes-health
+  rules:
+  - alert: NotesUnavailable
+    expr: up{job="notes-pods"} == 0 or absent(up{job="notes-pods"})
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: No healthy Notes scrape target
+  - alert: NotesHighCPU
+    expr: rate(process_cpu_seconds_total{job="notes-pods"}[2m]) > 0.4
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: Notes is using more than 0.4 CPU cores
+  - alert: NotesHighMemory
+    expr: process_resident_memory_bytes{job="notes-pods"} > 209715200
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: Notes RSS memory exceeds 200 MiB

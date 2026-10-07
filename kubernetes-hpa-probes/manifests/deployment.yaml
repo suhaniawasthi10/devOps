@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cpu-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cpu-demo
+      track: cpu-demo
+  template:
+    metadata:
+      labels:
+        app: cpu-demo
+        track: cpu-demo
+    spec:
+      containers:
+      - name: web
+        image: python:3.13-alpine
+        command:
+        - python
+        - -u
+        - -c
+        - "from http.server import HTTPServer,BaseHTTPRequestHandler\nimport hashlib\n\
+          class H(BaseHTTPRequestHandler):\n def do_GET(self):\n  hashlib.pbkdf2_hmac('sha256',b'lab',b'lab-salt',100000);self.send_response(200);self.end_headers();self.wfile.write(b'CPU\
+          \ work done')\nHTTPServer(('0.0.0.0',8080),H).serve_forever()"
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 300m
+            memory: 96Mi
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          periodSeconds: 3

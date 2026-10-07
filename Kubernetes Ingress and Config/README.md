@@ -124,3 +124,11 @@ kubectl --context minikube delete namespace devops-config
 ```
 
 The cluster-wide Ingress addon remains enabled for later exercises.
+
+## Ingress versus Ingress Controller
+
+Ingress is a namespaced API resource declaring HTTP host/path routing to Services. The controller watches these resources and configures an actual proxy/load balancer. The resource alone cannot route traffic. IngressClass selects the responsible implementation; this exercise uses the Minikube NGINX addon. Traefik and cloud load-balancer controllers are other examples. A Service exposes backends; Ingress adds HTTP routing at an entry point.
+
+Real Secret values must not be committed: base64 is reversible, clones and Git history retain data, and deleting a file does not revoke a credential. Use a secret manager or encrypted Git workflow and restrict RBAC. Only labeled dummy values belong in these coursework manifests.
+
+Complete the Service and missing-configuration before/after cases in the [troubleshooting lab](../kubernetes-troubleshooting/README.md). They cover root cause, fix and verification for this session.

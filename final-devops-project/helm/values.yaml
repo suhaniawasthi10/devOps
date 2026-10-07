@@ -1,0 +1,35 @@
+replicaCount: 1
+image:
+  repository: coursework-notes
+  tag: local
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+app:
+  version: v1
+  environment: coursework
+secret:
+  existingName: ""
+  # Public dummy value only. Supply an existing Secret for a real deployment.
+  demoApiKey: coursework-demo-only
+service:
+  port: 80
+resources:
+  requests:
+    cpu: 100m
+    memory: 96Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: ""
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPU: 60
+ingress:
+  enabled: false
+  className: nginx
+  host: notes.local

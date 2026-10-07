@@ -1,0 +1,242 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-observe
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-final
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-gitops
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: devops-observe
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus-discovery
+  namespace: devops-final
+rules:
+- apiGroups:
+  - ''
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-discovery
+  namespace: devops-final
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: devops-observe
+roleRef:
+  kind: Role
+  name: prometheus-discovery
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus-discovery
+  namespace: devops-gitops
+rules:
+- apiGroups:
+  - ''
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-discovery
+  namespace: devops-gitops
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: devops-observe
+roleRef:
+  kind: Role
+  name: prometheus-discovery
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: devops-observe
+data:
+  prometheus.yml: "global:\n  scrape_interval: 15s\n  evaluation_interval: 15s\nrule_files:\n\
+    - /etc/prometheus/alerts.yaml\nalerting:\n  alertmanagers:\n  - static_configs:\n\
+    \    - targets:\n      - alertmanager:9093\nscrape_configs:\n- job_name: prometheus\n\
+    \  static_configs:\n  - targets:\n    - localhost:9090\n- job_name: notes-pods\n\
+    \  kubernetes_sd_configs:\n  - role: pod\n    namespaces:\n      names:\n    \
+    \  - devops-final\n      - devops-gitops\n  relabel_configs:\n  - source_labels:\n\
+    \    - __meta_kubernetes_pod_annotation_prometheus_io_scrape\n    action: keep\n\
+    \    regex: 'true'\n  - source_labels:\n    - __meta_kubernetes_pod_container_port_number\n\
+    \    action: keep\n    regex: '8080'\n  - source_labels:\n    - __meta_kubernetes_namespace\n\
+    \    target_label: namespace\n  - source_labels:\n    - __meta_kubernetes_pod_name\n\
+    \    target_label: pod\n"
+  alerts.yaml: "groups:\n- name: notes-health\n  rules:\n  - alert: NotesUnavailable\n\
+    \    expr: up{job=\"notes-pods\"} == 0 or absent(up{job=\"notes-pods\"})\n   \
+    \ for: 1m\n    labels:\n      severity: critical\n    annotations:\n      summary:\
+    \ No healthy Notes scrape target\n  - alert: NotesHighCPU\n    expr: rate(process_cpu_seconds_total{job=\"\
+    notes-pods\"}[2m]) > 0.4\n    for: 1m\n    labels:\n      severity: warning\n\
+    \    annotations:\n      summary: Notes is using more than 0.4 CPU cores\n  -\
+    \ alert: NotesHighMemory\n    expr: process_resident_memory_bytes{job=\"notes-pods\"\
+    } > 209715200\n    for: 2m\n    labels:\n      severity: warning\n    annotations:\n\
+    \      summary: Notes RSS memory exceeds 200 MiB\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: devops-observe
+data:
+  alertmanager.yml: "route:\n  receiver: classroom-ui\n  group_wait: 10s\n  group_interval:\
+    \ 30s\n  repeat_interval: 1h\nreceivers:\n  - name: classroom-ui\n# Intentionally\
+    \ no external message receivers. Inspect alerts through the local UI.\n"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: devops-observe
+spec:
+  replicas: 1
+  selector:
+    matchLabels: &id001
+      app: prometheus
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: prometheus
+      automountServiceAccountToken: true
+      securityContext:
+        fsGroup: 65534
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v3.15.0
+        args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        - --storage.tsdb.path=/prometheus
+        - --storage.tsdb.retention.time=6h
+        ports:
+        - containerPort: 9090
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 96Mi
+          limits:
+            cpu: 300m
+            memory: 256Mi
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: http
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+          readOnly: true
+        - name: data
+          mountPath: /prometheus
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+      - name: data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: devops-observe
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - port: 9090
+    targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: devops-observe
+spec:
+  replicas: 1
+  selector:
+    matchLabels: &id001
+      app: alertmanager
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 65534
+      containers:
+      - name: alertmanager
+        image: prom/alertmanager:v0.28.1
+        args:
+        - --config.file=/etc/alertmanager/alertmanager.yml
+        - --storage.path=/alertmanager
+        ports:
+        - containerPort: 9093
+          name: http
+        resources:
+          requests:
+            cpu: 50m
+            memory: 96Mi
+          limits:
+            cpu: 300m
+            memory: 256Mi
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: http
+        volumeMounts:
+        - name: config
+          mountPath: /etc/alertmanager
+          readOnly: true
+        - name: data
+          mountPath: /alertmanager
+      volumes:
+      - name: config
+        configMap:
+          name: alertmanager-config
+      - name: data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: devops-observe
+spec:
+  selector:
+    app: alertmanager
+  ports:
+  - port: 9093
+    targetPort: http

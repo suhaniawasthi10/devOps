@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coursework Notes</title>
+<style>body{font:17px system-ui;max-width:720px;margin:60px auto;padding:0 24px;background:#f4f7fb;color:#17233b}h1{font-size:40px}input,textarea,button{font:inherit;padding:12px;border:1px solid #ccd5e3;border-radius:8px;box-sizing:border-box}input,textarea{display:block;width:100%;margin:10px 0}button{background:#244cc0;color:white;cursor:pointer}li{background:white;padding:18px;margin:12px 0;white-space:pre-wrap;overflow-wrap:anywhere}small{color:#526078}#status{min-height:24px}</style>
+<h1>Coursework Notes</h1><p>Suhani Awasthi · 24BCS10260 · {{ version }}</p>
+<p>Keep a short note while working through the DevOps labs.</p>
+<form id="form"><label>Lab API key<input id="key" type="password" autocomplete="off" required></label>
+<label>Note<textarea id="text" maxlength="500" rows="3" required></textarea></label><button>Save note</button></form>
+<p id="status" role="status"></p><ul id="notes"></ul><small>Notes are public within this lab. The API key is held only in this page.</small>
+<script>
+const statusEl=document.querySelector('#status');
+async function refresh(){const response=await fetch('/api/notes');if(!response.ok)throw Error('Could not load notes');const notes=await response.json();const list=document.querySelector('#notes');list.replaceChildren();for(const note of notes){const li=document.createElement('li');li.textContent=note.text+' ';const button=document.createElement('button');button.textContent='Delete';button.onclick=async()=>{const result=await fetch('/api/notes/'+note.id,{method:'DELETE',headers:{'X-API-Key':document.querySelector('#key').value}});if(result.ok){await refresh()}else{statusEl.textContent='Delete failed. Check your API key.'}};li.append(button);list.append(li)}}
+document.querySelector('#form').onsubmit=async(event)=>{event.preventDefault();try{const result=await fetch('/api/notes',{method:'POST',headers:{'Content-Type':'application/json','X-API-Key':document.querySelector('#key').value},body:JSON.stringify({text:document.querySelector('#text').value})});if(!result.ok)throw Error('Save failed. Check your key and note.');document.querySelector('#text').value='';statusEl.textContent='Saved';await refresh()}catch(error){statusEl.textContent=error.message}};
+refresh().catch(error=>statusEl.textContent=error.message);
+</script></html>

@@ -1,0 +1,5 @@
+title = "Coursework secret scanning"
+[extend]
+useDefault = true
+# Keep default rules. Public dummy lab values are short descriptive strings,
+# not real credentials; no broad directory allowlist is used.

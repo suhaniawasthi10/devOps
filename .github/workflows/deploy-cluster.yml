@@ -1,0 +1,43 @@
+name: Deploy published Notes image
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Full commit SHA of an image published by the successful DevSecOps workflow
+        required: true
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: coursework
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.17.4
+      - uses: azure/setup-kubectl@v4
+      - name: Validate inputs and cluster access
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          KUBE_CONFIG_B64: ${{ secrets.KUBE_CONFIG_B64 }}
+          NOTES_API_KEY: ${{ secrets.NOTES_API_KEY }}
+        run: |
+          [[ "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]] || { echo 'A full lowercase commit SHA is required'; exit 1; }
+          test -n "$KUBE_CONFIG_B64" && test -n "$NOTES_API_KEY"
+          umask 077
+          printf '%s' "$KUBE_CONFIG_B64" | base64 --decode > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: Deploy
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          REPOSITORY: ${{ github.repository }}
+          NOTES_API_KEY: ${{ secrets.NOTES_API_KEY }}
+        run: |
+          # Pre-create devops-release and a namespace-scoped deployer outside this workflow.
+          kubectl -n devops-release create secret generic notes-api --from-literal=DEMO_API_KEY="$NOTES_API_KEY" --dry-run=client -o yaml | kubectl -n devops-release apply -f -
+          helm upgrade --install notes final-devops-project/helm -n devops-release --set image.repository="ghcr.io/${REPOSITORY,,}/notes" --set image.tag="$IMAGE_TAG" --set secret.existingName=notes-api --wait --timeout 240s
+          helm test notes -n devops-release --logs
+      - name: Remove temporary credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/kubeconfig"

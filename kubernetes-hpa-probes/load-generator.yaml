@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: load-generator
+spec:
+  restartPolicy: Never
+  containers:
+  - name: demo
+    image: busybox:1.37
+    command:
+    - sh
+    - -c
+    - for i in 1 2 3 4; do (while true; do wget -q -O /dev/null http://cpu-demo; done)
+      & done; wait
+    resources:
+      requests:
+        cpu: 10m
+        memory: 8Mi
+      limits:
+        cpu: 100m
+        memory: 32Mi

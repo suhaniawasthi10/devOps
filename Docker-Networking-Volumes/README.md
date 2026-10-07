@@ -67,7 +67,7 @@ I created the Backend container using Nginx:
 ```bash
 docker run -d \
   --name backend \
-  --network backend-network \
+  --network frontend-network \
   nginx:alpine
 ```
 
@@ -75,10 +75,10 @@ Then I connected the Backend to the other required networks:
 
 ```bash
 docker network connect database-network backend
-docker network connect frontend-network backend
+docker inspect backend --format '{{json .NetworkSettings.Networks}}'
 ```
 
-Therefore, the Backend can communicate with the Frontend and Database.
+This corrected topology connects Backend to exactly two networks: frontend-network and database-network. The third network, backend-network, is created for the exercise and remains unused. If repeating the earlier run, disconnect Backend from backend-network first.
 
 ---
 
@@ -270,3 +270,8 @@ The networks created in Task 1 were bridge networks because the containers were 
 In this homework, I learned how Docker networking allows containers to communicate with each other using different networks.
 
 I also learned how host networking works, how to use bind mounts to share files between the host and a container, and how overlay networks can be used for communication between containers running on different Docker hosts.
+## Completing the host-network check
+
+The historical result above remains unchanged. Docker Desktop 4.34+ supports host networking as an opt-in feature. Enable it in Settings → Resources → Network, apply the change, then repeat the Apache lab and `curl -I http://localhost:80`. Alternatively run it on a Linux Docker host. A published-port bridge container is not evidence of host networking. Capture the actual HTTP response and network inspection later.
+
+Reference: https://docs.docker.com/engine/network/drivers/host/

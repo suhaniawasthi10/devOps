@@ -8,46 +8,7 @@ The script also takes a directory name from the user, creates that directory, cr
 
 ## Script
 
-The script is saved as `system_info.sh`.
-
-```bash
-#!/bin/bash
-
-# Store system information in variables
-current_date=$(date)
-hostname=$(hostname)
-username=$(whoami)
-
-# Take directory name from the user
-read -p "Enter directory name: " directory
-
-# Create the directory
-mkdir -p "$directory"
-
-# Create a file inside the directory
-file="$directory/processes.txt"
-touch "$file"
-
-# Display system information
-echo "===== System Information ====="
-echo "Current Date: $current_date"
-echo "Hostname: $hostname"
-echo "Username: $username"
-
-echo ""
-echo "===== Disk Usage ====="
-df -h
-
-echo ""
-echo "===== Running Processes ====="
-ps
-
-# Store running processes in the file
-ps > "$file"
-
-echo ""
-echo "Running processes have been saved to $file"
-```
+The implementation is in [system_info.sh](system_info.sh). It validates the input, quotes paths, and stops on failed commands.
 
 ## Commands Used
 
@@ -105,7 +66,7 @@ I used variables to store values like the date, hostname and username so that th
 
 ```bash
 current_date=$(date)
-hostname=$(hostname)
+machine_name=$(hostname)
 username=$(whoami)
 ```
 
@@ -139,24 +100,16 @@ The script asked me for a directory name:
 Enter directory name: devops_data
 ```
 
-## Output
+## Output capture — scheduled for the practical session
 
-The script displayed the following information:
+Run from this directory and save the real terminal output:
 
-```text
-===== System Information =====
-Current Date: [your actual output]
-Hostname: [your actual output]
-Username: [your actual output]
-
-===== Disk Usage =====
-[your actual df -h output]
-
-===== Running Processes =====
-[your actual ps output]
-
-Running processes have been saved to devops_data/processes.txt
+```bash
+bash system_info.sh
+cat devops_data/processes.txt
 ```
+
+The output includes date, hostname, username, disk usage, running processes and the saved file path. No sample values are represented as an actual run.
 
 ## Checking the Created Files
 

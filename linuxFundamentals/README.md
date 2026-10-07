@@ -145,3 +145,22 @@ The `-u` option is used to filter logs for a particular systemd service.
 | `free -h` | Shows memory usage             |
 | `history` | Shows previously used commands |
 | `man`     | Shows the manual for a command |
+## Reproducible practical work
+
+Run `bash linuxFundamentals/practice.sh` from the repository root. It creates an isolated temporary directory and demonstrates inode sharing, a dangling symlink, copying, moving, permissions and basic inspection. Capture its actual output later.
+
+On an Ubuntu VM with systemd (macOS itself does not have these Linux services):
+```bash
+sudo adduser coursework-test
+id coursework-test
+getent passwd coursework-test
+sudo journalctl -n 20 --no-pager
+systemctl list-units --type=service --state=running
+sudo journalctl -u systemd-journald -n 20 --no-pager
+free -h
+man ln
+history
+# After collecting evidence, remove only the user created for this lab:
+sudo deluser --remove-home coursework-test
+```
+`adduser` is the Ubuntu interactive frontend; its behavior is distribution-specific. `journalctl -u` filters service logs; choose an installed service if SSH is absent. User creation and systemd log evidence remain for the Linux practical session.

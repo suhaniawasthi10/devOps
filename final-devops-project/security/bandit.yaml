@@ -1,0 +1,2 @@
+exclude_dirs: ['tests', '.venv']
+# No checks disabled. test_app.py is excluded explicitly by the scanner command.

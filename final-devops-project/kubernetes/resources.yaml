@@ -1,0 +1,183 @@
+---
+# Source: coursework-notes/templates/secret.yaml
+# Dummy classroom credentials, never substitute real credentials in committed values.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: notes-secret
+type: Opaque
+stringData:
+  DEMO_API_KEY: "coursework-demo-only"
+
+---
+# Source: coursework-notes/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notes-config
+  labels:
+    app: notes
+data:
+  APP_VERSION: "v2"
+  ENVIRONMENT: "production-demo"
+  NOTES_DB: /data/notes.db
+
+---
+# Source: coursework-notes/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: notes-data
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Source: coursework-notes/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: notes
+  labels:
+    app: notes
+spec:
+  type: ClusterIP
+  selector:
+    app: notes
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+
+---
+# Source: coursework-notes/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notes
+  labels:
+    app: notes
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: notes
+  template:
+    metadata:
+      labels:
+        app: notes
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /metrics
+        checksum/config: 6a2a68727969550776735684b848e38c63923e11900ea6ae9f230308b1bdf020
+        checksum/secret: d7f02d164d3dcb673e212b6a7a83a801cd686f2909ec4d2088b51743dbb9958e
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: notes
+          image: "coursework-notes:local"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: notes-config
+          env:
+            - name: DEMO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: notes-secret
+                  key: DEMO_API_KEY
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          startupProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 96Mi
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: notes-data
+        - name: tmp
+          emptyDir: {}
+
+---
+# Source: coursework-notes/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notes
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: notes
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60
+
+---
+# Source: coursework-notes/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: notes
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: notes.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: notes
+                port:
+                  number: 80

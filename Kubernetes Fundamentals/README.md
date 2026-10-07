@@ -80,3 +80,20 @@ After capturing evidence, delete only these exercise namespaces:
 ```bash
 kubectl --context minikube delete namespace devops-fundamentals devops-staging
 ```
+
+## Kubernetes Basics tutorial continuation
+
+The earlier sections explore the cluster and a Pod. To cover deploy/expose/scale/update, run this before cleaning up devops-fundamentals:
+```bash
+kubectl --context minikube -n devops-fundamentals create deployment tutorial-web --image=nginx:1.27-alpine
+kubectl --context minikube -n devops-fundamentals expose deployment tutorial-web --port=80 --type=ClusterIP
+kubectl --context minikube -n devops-fundamentals rollout status deployment/tutorial-web
+kubectl --context minikube -n devops-fundamentals scale deployment tutorial-web --replicas=3
+kubectl --context minikube -n devops-fundamentals get deploy,rs,pods,svc
+kubectl --context minikube -n devops-fundamentals set image deployment/tutorial-web nginx=nginx:1.29-alpine
+kubectl --context minikube -n devops-fundamentals rollout status deployment/tutorial-web
+kubectl --context minikube -n devops-fundamentals rollout undo deployment/tutorial-web
+kubectl --context minikube -n devops-fundamentals port-forward svc/tutorial-web 8087:80
+```
+Check localhost:8087 in another terminal/browser, then stop port-forward and clean up the namespace. This follows the deploy/explore/expose/scale/update learning sequence; record actual outputs later.
+Reference: https://kubernetes.io/docs/tutorials/kubernetes-basics/

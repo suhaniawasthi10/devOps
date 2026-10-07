@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  labels:
+    app: {{ .Release.Name }}
+data:
+  APP_VERSION: {{ .Values.app.version | quote }}
+  ENVIRONMENT: {{ .Values.app.environment | quote }}
+  NOTES_DB: /data/notes.db

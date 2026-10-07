@@ -125,3 +125,7 @@ kubectl --context minikube delete namespace devops-workloads
 
 Apply v1 and v2 individually as above; do not bulk-apply the manifests folder, which contains
 two versions of the same Deployment.
+
+## Complete Session 10 coverage
+
+Continue with [all four deployment strategies](strategies/README.md) and [Pod lifecycle examples](lifecycle/README.md). Live observations remain pending across both additions.

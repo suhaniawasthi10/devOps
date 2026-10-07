@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trouble-image-pull
+spec:
+  replicas: 1
+  selector:
+    matchLabels: &id001
+      app: trouble-image-pull
+      track: trouble-image-pull
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      containers:
+      - name: web
+        image: nginx:alpine
+        command:
+        - nginx
+        - -g
+        - daemon off;
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 20m
+            memory: 24Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trouble-image-pull
+spec:
+  selector:
+    app: trouble-image-pull
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80

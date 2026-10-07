@@ -1,0 +1,14 @@
+# Initial local Minikube demo. After a passing publish, promote an immutable GHCR tag.
+image:
+  repository: coursework-notes
+  tag: local
+  pullPolicy: IfNotPresent
+app:
+  version: v1
+  environment: gitops-demo
+autoscaling:
+  enabled: true
+ingress:
+  enabled: true
+  className: nginx
+  host: notes-gitops.local

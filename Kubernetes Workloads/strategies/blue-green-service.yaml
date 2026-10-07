@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: blue-green
+spec:
+  selector:
+    app: blue-green
+    track: blue
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80

@@ -1,0 +1,4 @@
+# Apply alongside values.yaml on the Terraform-created K3s node.
+ingress:
+  className: traefik
+# Set the published amd64 GHCR image and full SHA through promote-image.py first.

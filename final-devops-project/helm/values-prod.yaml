@@ -1,0 +1,8 @@
+# Classroom "production" overrides; still targets a SINGLE node with SQLite/RWO.
+app:
+  version: v2
+  environment: production-demo
+autoscaling:
+  enabled: true
+ingress:
+  enabled: true

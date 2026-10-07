@@ -1,0 +1,41 @@
+name: Session 16 - Calculator CI and delivery
+on:
+  push:
+    branches: [main]
+    paths: ['session16-cicd-github-actions/**', '.github/workflows/ci.yml']
+  pull_request:
+    paths: ['session16-cicd-github-actions/**', '.github/workflows/ci.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-build-deliver:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: session16-cicd-github-actions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q --junitxml=build/test-results.xml
+      - run: bash build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calculator-build
+          path: session16-cicd-github-actions/build/
+      - name: Build container
+        run: docker build -t calculator:${{ github.sha }} .
+      - name: Deploy and smoke-test the delivery candidate
+        run: |
+          docker run -d --name calculator-demo -p 127.0.0.1:18081:8080 calculator:${{ github.sha }}
+          trap 'docker logs calculator-demo; docker rm -f calculator-demo' EXIT
+          curl --retry 15 --retry-all-errors --retry-connrefused --retry-delay 2 -fsS http://localhost:18081/healthz
+          curl -fsS -H 'Content-Type: application/json' -d '{"operation":"add","a":3,"b":4}' http://localhost:18081/calculate | python -c 'import json,sys; assert json.load(sys.stdin)["result"] == 7'
+      - name: Demonstrate optional secret injection
+        env:
+          DEMO_SECRET: ${{ secrets.DEMO_SECRET }}
+        run: |
+          if [ -n "$DEMO_SECRET" ]; then echo 'Classroom secret injected; value is not printed.'; else echo 'Optional classroom secret not configured.'; fi

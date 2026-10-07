@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trouble-network
+spec:
+  replicas: 1
+  selector:
+    matchLabels: &id001
+      app: trouble-network
+      track: trouble-network
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      containers:
+      - name: web
+        image: nginx:alpine
+        command:
+        - sh
+        - -c
+        - echo v1 > /usr/share/nginx/html/index.html; exec nginx -g "daemon off;"
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 20m
+            memory: 24Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trouble-network
+spec:
+  selector:
+    app: trouble-network
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: network-client
+spec:
+  restartPolicy: Never
+  containers:
+  - name: demo
+    image: busybox:1.37
+    command:
+    - sleep
+    - '3600'
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-lab-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: trouble-network
+  policyTypes:
+  - Ingress
+  ingress: []

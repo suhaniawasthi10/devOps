@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+%{ if enable_k3s ~}
+# Use a pinned K3s release. No Kubernetes credentials are exported by Terraform.
+curl -sfL https://get.k3s.io -o /root/install-k3s.sh
+TOKEN=$(curl -fsS -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' http://169.254.169.254/latest/api/token)
+PUBLIC_IP=$(curl -fsS -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
+INSTALL_K3S_VERSION='${k3s_version}' INSTALL_K3S_EXEC="server --tls-san $PUBLIC_IP --cluster-cidr 10.52.0.0/16 --service-cidr 10.53.0.0/16" sh /root/install-k3s.sh
+systemctl enable --now k3s
+%{ else ~}
+dnf install -y nginx
+cat > /usr/share/nginx/html/index.html <<'HTML'
+<!doctype html><html lang="en"><title>DevOps cloud lab</title><h1>Hello students</h1><p>Suhani Awasthi · 24BCS10260</p><p>Provisioned with Terraform: VPC, subnet, EC2 and private S3 storage.</p></html>
+HTML
+systemctl enable --now nginx
+%{ endif ~}
